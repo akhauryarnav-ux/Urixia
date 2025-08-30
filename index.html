@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urixa – My Plan (Prototype)</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+  h1 { margin-bottom: 0; }
+  .sub { color:#555; margin-top:4px; }
+  .panel { display:flex; gap:16px; flex-wrap: wrap; margin: 18px 0; }
+  .card { border:1px solid #e3e7ea; border-radius:16px; padding:16px; width:320px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);}
+  .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#eef7fa; border:1px solid #cfe5ee; font-size:12px; color:#0a4150; margin-bottom:8px;}
+  .warn { background:#fff5f5; border-color:#ffcdd2; color:#7f1d1d; }
+  .controls label { display:block; margin:6px 0; }
+  .footer { margin-top: 24px; color:#666; font-size: 12px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+  <h1>Urixa — My Plan</h1>
+  <div class="sub">Prototype: toggle your attributes below to see personalized tiles.</div>
+
+  <div class="controls">
+    <h3>Simulate intake flags</h3>
+    <label><input type="checkbox" id="periPost"> Peri/Post-menopause</label>
+    <label><input type="checkbox" id="sexLinked"> Episodes linked to sex</label>
+    <label><input type="checkbox" id="triedPrev"> Tried prevention already</label>
+    <label><input type="number" id="recur" min="0" value="0" style="width:80px"> Recurrences (last 12 mo)</label>
+    <label><input type="checkbox" id="redflag"> Red flag present (fever, flank pain, pregnancy, vomiting)</label>
+    <button onclick="render()">Render plan</button>
+  </div>
+
+  <div id="urgent" class="card hidden">
+    <div class="badge warn">URGENT NOW</div>
+    <div>If you have fever ≥100.4 °F, flank pain, pregnancy, or vomiting/dehydration, please go to urgent care/ED now.</div>
+  </div>
+
+  <h3>Personalized tiles</h3>
+  <div id="tiles" class="panel"></div>
+
+  <div class="footer">Rules version: 0.1</div>
+
+<script>
+const RULES = {"version": "0.1", "eligibility": {"include": ["age>=18", "rUTI_def_met"], "exclude_urgent": ["fever", "flank_pain", "pregnancy", "vomiting", "immunosuppressed", "catheter", "recent_urologic_procedure", "poorly_controlled_diabetes"]}, "logic": [{"if": "peri_or_post_menopause", "then": ["tile:VaginalEstrogen"]}, {"if": "episodes_linked_to_sex", "then": ["tip:AvoidSpermicides", "tile:PostCoitalRxTalk"]}, {"if": "eligible", "then": ["offer:CranberryPAC", "tip:Hydration", "tip:BowelRegularity"]}, {"if": "recurrences>=3 && tried_prevention", "then": ["tile:MethenamineTalk"]}, {"if": "red_flag_present", "then": ["triage:UrgentCareED"]}], "content": {"tile:VaginalEstrogen": "Ask your clinician about low\u2011dose vaginal estrogen to help reduce rUTIs.", "offer:CranberryPAC": "Consider cranberry with standardized PAC content; choose products that declare PAC amount and assay.", "tile:MethenamineTalk": "Ask your clinician about methenamine hippurate (non\u2011antibiotic prophylaxis).", "tile:PostCoitalRxTalk": "If UTIs are temporally related to sex, clinicians may offer single\u2011dose post\u2011coital antibiotic prophylaxis.", "tip:AvoidSpermicides": "If UTIs follow intercourse, consider avoiding spermicides/diaphragm.", "tip:Hydration": "Aim for regular hydration throughout the day unless your clinician advises otherwise.", "tip:BowelRegularity": "Address constipation; regular bowel habits can help.", "triage:UrgentCareED": "Fever, flank pain, pregnancy, or vomiting \u2192 urgent evaluation now."}};
+
+function addTile(text, type="card") {
+  const c = document.createElement('div');
+  c.className = 'card';
+  const b = document.createElement('div');
+  b.className = 'badge';
+  b.textContent = (type==='tile'?'Recommended':'Tip');
+  c.appendChild(b);
+  const p = document.createElement('div');
+  p.textContent = text;
+  c.appendChild(p);
+  document.getElementById('tiles').appendChild(c);
+}
+
+function render() {
+  const tiles = document.getElementById('tiles');
+  tiles.innerHTML = '';
+  const urgent = document.getElementById('urgent');
+  urgent.classList.add('hidden');
+
+  const state = {
+    peri_or_post_menopause: document.getElementById('periPost').checked,
+    episodes_linked_to_sex: document.getElementById('sexLinked').checked,
+    tried_prevention: document.getElementById('triedPrev').checked,
+    recurrences: parseInt(document.getElementById('recur').value||'0',10),
+    red_flag_present: document.getElementById('redflag').checked,
+    eligible: true
+  };
+
+  // Evaluate simplified logic
+  if (state.red_flag_present) {
+    urgent.classList.remove('hidden');
+    addTile(RULES.content["triage:UrgentCareED"], 'tile');
+    return;
+  }
+
+  if (state.peri_or_post_menopause) {
+    addTile(RULES.content["tile:VaginalEstrogen"], 'tile');
+  }
+  if (state.episodes_linked_to_sex) {
+    addTile(RULES.content["tip:AvoidSpermicides"], 'tip');
+    addTile(RULES.content["tile:PostCoitalRxTalk"], 'tile');
+  }
+  if (state.eligible) {
+    addTile(RULES.content["offer:CranberryPAC"], 'tile');
+    addTile(RULES.content["tip:Hydration"], 'tip');
+    addTile(RULES.content["tip:BowelRegularity"], 'tip');
+  }
+  if (state.recurrences >= 3 && state.tried_prevention) {
+    addTile(RULES.content["tile:MethenamineTalk"], 'tile');
+  }
+}
+
+render();
+</script>
+</body>
+</html>
